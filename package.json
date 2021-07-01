@@ -1,0 +1,18 @@
+{
+  "name": "grove",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "cross-env WECHATY_PUPPET=wechaty-puppet-wechat node bot.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cross-env": "^7.0.3",
+    "qrcode-terminal": "^0.12.0",
+    "wechaty": "^0.60.12",
+    "wechaty-puppet-wechat": "^0.28.1"
+  }
+}
