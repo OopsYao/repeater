@@ -4,11 +4,13 @@ const http = require("http");
 
 const say = async (bot, query, message) => {
   const contact = await bot.Contact.find(query);
+  if (!contact) throw "Contact doesnot exist";
   await contact.say(message);
 };
 
 const sayRoom = async (bot, name, message) => {
   const room = await bot.Room.find({ topic: name });
+  if (!room) throw "Group doesnot exist";
   await room.say(message);
 };
 
@@ -40,16 +42,30 @@ const botStart = async () => {
   });
 
   const requestListener = async (req, resp) => {
-    if (req.method === "POST") {
-      const bodyStr = await getBody(req);
-      const { contact, room, message } = JSON.parse(bodyStr);
-      if (contact) {
-        await say(bot, contact, message);
-      } else if (room) {
-        await sayRoom(bot, room, message);
+    try {
+      if (req.method === "POST") {
+        const bodyStr = await getBody(req);
+        const { contact, room, message } = JSON.parse(bodyStr);
+        if (contact) {
+          await say(bot, contact, message);
+        } else if (room) {
+          await sayRoom(bot, room, message);
+        } else {
+          throw "No contact or group specified";
+        }
+        resp.writeHead(201);
+      } else {
+        throw 405;
       }
-      resp.writeHead(201);
       resp.end();
+    } catch (e) {
+      if (e === 405) {
+        resp.writeHead(405);
+        resp.end("Only the POST method is allowed");
+      } else {
+        resp.writeHead(400);
+        resp.end(String(e));
+      }
     }
   };
   const getBody = (req) =>
