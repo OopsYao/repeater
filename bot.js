@@ -16,7 +16,7 @@ const sayRoom = async (bot, name, message) => {
   await room.say(message);
 };
 
-const botStart = async () => {
+const initBot = () => {
   const login = (bot) =>
     new Promise((resolve) => {
       bot.on("login", resolve);
@@ -34,16 +34,9 @@ const botStart = async () => {
       }
     }
   });
-  await bot.start();
-  await login(bot);
-  return bot;
-};
-
-(async () => {
-  const bot = await botStart();
-  const masterAlias = "xy";
-  const master = await bot.Contact.find({ alias: masterAlias });
   bot.on("message", async (m) => {
+    const masterAlias = "xy";
+    const master = await bot.Contact.find({ alias: masterAlias });
     // TODO: Debouncing and forward messages together
     // Do not repeat yourself.
     // According the doc, forward messages do not trigger `message` event, but it seems to be wrong.
@@ -52,6 +45,11 @@ const botStart = async () => {
     if (await m.room().has(master)) return; // Including the common room with the master
     await m.forward(master);
   });
+  return bot;
+};
+
+(async () => {
+  const bot = initBot();
 
   const requestListener = async (req, resp) => {
     try {
@@ -91,6 +89,7 @@ const botStart = async () => {
       });
     });
 
+  bot.start();
   const server = http.createServer(requestListener);
-  server.listen(8080);
+  server.listen(process.env.PORT || 8080);
 })();
