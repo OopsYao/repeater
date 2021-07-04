@@ -1,6 +1,8 @@
+require("dotenv").config({ path: ".env.local" });
 const { Wechaty } = require("wechaty");
 const qt = require("qrcode-terminal");
 const http = require("http");
+const { informTelegram } = require("./telegram");
 
 const say = async (bot, query, message) => {
   const contact = await bot.Contact.find(query);
@@ -21,7 +23,17 @@ const botStart = async () => {
     });
 
   const bot = Wechaty.instance() // Global Instance
-    .on("scan", (qrcode, status) => qt.generate(qrcode));
+    .on("scan", async (qrcode, status) => {
+      if (status === 2) {
+        // scan事件会被重复触发，status为5
+        try {
+          qt.generate(qrcode);
+          await informTelegram(qrcode);
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    });
   await bot.start();
   await login(bot);
   return bot;
