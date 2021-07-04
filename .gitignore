@@ -1,2 +1,4 @@
 node_modules
 .env.local
+# Wechaty cache config
+fb.memory-card.json

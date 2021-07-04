@@ -22,18 +22,18 @@ const botStart = async () => {
       bot.on("login", resolve);
     });
 
-  const bot = Wechaty.instance() // Global Instance
-    .on("scan", async (qrcode, status) => {
-      if (status === 2) {
-        // scan事件会被重复触发，status为5
-        try {
-          qt.generate(qrcode);
-          await informTelegram(qrcode);
-        } catch (e) {
-          console.error(e);
-        }
+  const bot = new Wechaty({ name: "fb" }); // Global Instance
+  bot.on("scan", async (qrcode, status) => {
+    if (status === 2) {
+      // scan事件会被重复触发，status为5
+      try {
+        qt.generate(qrcode);
+        await informTelegram(qrcode);
+      } catch (e) {
+        console.error(e);
       }
-    });
+    }
+  });
   await bot.start();
   await login(bot);
   return bot;
