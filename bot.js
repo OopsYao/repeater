@@ -3,6 +3,7 @@ const { Wechaty } = require("wechaty");
 const qt = require("qrcode-terminal");
 const http = require("http");
 const { informTelegram } = require("./telegram");
+const { informMail } = require("./alimail");
 
 const say = async (bot, query, message) => {
   const contact = await bot.Contact.find(query);
@@ -28,7 +29,7 @@ const initBot = () => {
       // scan事件会被重复触发，status为5
       try {
         qt.generate(qrcode);
-        await informTelegram(qrcode);
+        await Promise.all([informTelegram, informMail].map((f) => f(qrcode)));
       } catch (e) {
         console.error(e);
       }
