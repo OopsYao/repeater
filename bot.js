@@ -4,6 +4,7 @@ const qt = require("qrcode-terminal");
 const http = require("http");
 const { informTelegram } = require("./telegram");
 const { informMail } = require("./alimail");
+const { Observable }  = require('rxjs')
 
 const say = async (bot, query, message) => {
   const contact = await bot.Contact.find(query);
@@ -18,13 +19,18 @@ const sayRoom = async (bot, name, message) => {
 };
 
 const initBot = () => {
-  const login = (bot) =>
-    new Promise((resolve) => {
-      bot.on("login", resolve);
-    });
-
   const bot = new Wechaty({ name: "fb" }); // Global Instance
-  bot.on("scan", async (qrcode, status) => {
+  const [loginStream, logoutStream, scanStream, messageStream] = ['login', 'logout', 'scan', 'message'].map(
+    event => new Observable(
+      subscriber => bot.on(event, (...params) => subscriber.next(params))
+    )
+  )
+  return { bot, loginStream, logoutStream, scanStream, messageStream };
+};
+
+(async () => {
+  const { bot, scanStream, messageStream } = initBot();
+  scanStream.subscribe(async ([qrcode, status]) => {
     if (status === 2) {
       // scan事件会被重复触发，status为5
       try {
@@ -34,8 +40,8 @@ const initBot = () => {
         console.error(e);
       }
     }
-  });
-  bot.on("message", async (m) => {
+  })
+  messageStream.subscribe(async ([m]) => {
     const masterAlias = "xy";
     const master = await bot.Contact.find({ alias: masterAlias });
     // TODO: Debouncing and forward messages together
@@ -45,12 +51,7 @@ const initBot = () => {
     if (masterAlias === (await m.from().alias())) return; // Do not repeat the master
     if (await m.room().has(master)) return; // Including the common room with the master
     await m.forward(master);
-  });
-  return bot;
-};
-
-(async () => {
-  const bot = initBot();
+  })
 
   const requestListener = async (req, resp) => {
     try {
