@@ -1,10 +1,8 @@
 require("dotenv").config({ path: ".env.local" });
 const { Wechaty } = require("wechaty");
-const qt = require("qrcode-terminal");
 const http = require("http");
-const { informTelegram } = require("./telegram");
-const { informMail } = require("./alimail");
-const { Observable }  = require('rxjs')
+const rx = require('rxjs')
+const { WebSocketServer } = require('ws')
 
 const say = async (bot, query, message) => {
   const contact = await bot.Contact.find(query);
@@ -20,27 +18,35 @@ const sayRoom = async (bot, name, message) => {
 
 const initBot = () => {
   const bot = new Wechaty({ name: "fb" }); // Global Instance
-  const [loginStream, logoutStream, scanStream, messageStream] = ['login', 'logout', 'scan', 'message'].map(
-    event => new Observable(
+  const [login$, logout$, scan$, message$] = ['login', 'logout', 'scan', 'message'].map(
+    event => new rx.Observable(
       subscriber => bot.on(event, (...params) => subscriber.next(params))
     )
   )
-  return { bot, loginStream, logoutStream, scanStream, messageStream };
+  const loginout$ = rx.merge(
+    login$.pipe(rx.map(() => 'login')),
+    logout$.pipe(rx.map(() => 'logout')),
+  )
+ 
+  const asBehavior = (obs, init) => {
+    const mark = Symbol()
+    const be = new rx.BehaviorSubject(init === undefined ? mark : init)
+    obs.subscribe(be)
+    return be.pipe(rx.filter(v => v !== mark)) // Skip the pointless mark
+  }
+  return {
+    bot,
+    scanStream: asBehavior(scan$.pipe(
+      rx.map(([qrcode]) => qrcode),
+      rx.distinctUntilChanged(),
+    )),
+    messageStream: message$,
+    loginoutStream: asBehavior(loginout$, 'logout'),
+  };
 };
 
 (async () => {
-  const { bot, scanStream, messageStream } = initBot();
-  scanStream.subscribe(async ([qrcode, status]) => {
-    if (status === 2) {
-      // scan事件会被重复触发，status为5
-      try {
-        qt.generate(qrcode);
-        await Promise.all([informTelegram, informMail].map((f) => f(qrcode)));
-      } catch (e) {
-        console.error(e);
-      }
-    }
-  })
+  const { bot, scanStream, messageStream, loginoutStream } = initBot();
   messageStream.subscribe(async ([m]) => {
     const masterAlias = "xy";
     const master = await bot.Contact.find({ alias: masterAlias });
@@ -94,4 +100,19 @@ const initBot = () => {
   bot.start();
   const server = http.createServer(requestListener);
   server.listen(process.env.PORT || 8080);
+  const wss = new WebSocketServer({ server })
+  wss.on('connection', (ws, { url }) => {
+    switch (url) {
+      case '/qr':
+        scanStream.subscribe((qrcode) => {
+          ws.send(JSON.stringify(qrcode))
+        })
+        break
+      case '/status':
+        loginoutStream.subscribe((state) => {
+          ws.send(JSON.stringify(state))
+        })
+        break
+    }
+  })
 })();

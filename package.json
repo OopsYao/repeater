@@ -18,6 +18,7 @@
     "telegram-bot-api": "^2.0.0",
     "temp": "^0.9.4",
     "wechaty": "^0.60.12",
-    "wechaty-puppet-wechat": "^0.28.1"
+    "wechaty-puppet-wechat": "^0.28.1",
+    "ws": "^8.2.0"
   }
 }
