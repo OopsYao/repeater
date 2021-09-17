@@ -102,17 +102,25 @@ const initBot = () => {
   server.listen(process.env.PORT || 8080);
   const wss = new WebSocketServer({ server })
   wss.on('connection', (ws, { url }) => {
-    switch (url) {
-      case '/qr':
-        scanStream.subscribe((qrcode) => {
-          ws.send(JSON.stringify(qrcode))
-        })
-        break
-      case '/status':
-        loginoutStream.subscribe((state) => {
-          ws.send(JSON.stringify(state))
-        })
-        break
-    }
+    const TOKEN = 123
+    ws.on('message', (data) => {
+      const token = JSON.parse(data.toString())
+      if (token !== TOKEN) {
+        ws.close()
+        return
+      }
+      switch (url) {
+        case '/qr':
+          scanStream.subscribe((qrcode) => {
+            ws.send(JSON.stringify(qrcode))
+          })
+          break
+        case '/status':
+          loginoutStream.subscribe((state) => {
+            ws.send(JSON.stringify(state))
+          })
+          break
+      }
+    })
   })
 })();
